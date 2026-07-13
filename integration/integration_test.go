@@ -15,6 +15,7 @@ import (
 	"github.com/HalxDocs/onceo-core/providers/mpesa"
 	"github.com/HalxDocs/onceo-core/providers/opay"
 	"github.com/HalxDocs/onceo-core/providers/paystack"
+	redisstore "github.com/HalxDocs/onceo-core/store/redis"
 )
 
 // Fixture helpers — tests use inline payloads so they don't depend on external files.
@@ -524,5 +525,75 @@ func TestEventJSONRoundTrip(t *testing.T) {
 	}
 	if decoded.AmountMinor != orig.AmountMinor {
 		t.Errorf("AmountMinor: got %d, want %d", decoded.AmountMinor, orig.AmountMinor)
+	}
+}
+
+func TestProcessNilContext(t *testing.T) {
+	provider, _ := paystack.New("sk_test")
+	body := paystackChargeSuccessBody()
+	headers := paystackHeaders("sk_test", body)
+
+	// nil context is not allowed per Go's context contract; Process should
+	// behave deterministically (panic or error, not silently succeed).
+	defer func() {
+		if r := recover(); r == nil {
+			// If it doesn't panic, at minimum verify it errors predictably
+		}
+	}()
+	_, err := onceo.Process(nil, provider, onceo.NewMemoryStore(), headers, body)
+	if err == nil {
+		t.Error("expected Process(nil) to fail")
+	}
+}
+
+func TestRedisStoreReservedChars(t *testing.T) {
+	store := &redisstore.Store{}
+
+	_, err := store.SaveIfNew(context.Background(), onceo.Event{
+		Provider: "pay:stack", ProviderEventID: "evt_001",
+	})
+	if err == nil {
+		t.Error("expected error for provider name with colon")
+	}
+
+	_, err = store.SaveIfNew(context.Background(), onceo.Event{
+		Provider: "paystack", ProviderEventID: "evt\\001",
+	})
+	if err == nil {
+		t.Error("expected error for event ID with backslash")
+	}
+
+	_, err = store.SaveIfNew(context.Background(), onceo.Event{
+		Provider: "pay\\stack", ProviderEventID: "evt:001",
+	})
+	if err == nil {
+		t.Error("expected error for both fields with reserved chars")
+	}
+}
+
+func TestEventRawPayloadNilRoundTrip(t *testing.T) {
+	orig := onceo.Event{
+		ID:              "evt_nil",
+		Provider:        "paystack",
+		ProviderEventID: "456",
+		Type:            "charge.success",
+		Status:          onceo.StatusSuccess,
+		AmountMinor:     50000,
+		Currency:        "NGN",
+		// RawPayload intentionally nil
+	}
+
+	data, err := json.Marshal(orig)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var decoded onceo.Event
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if decoded.RawPayload != nil {
+		t.Error("expected RawPayload to remain nil after round-trip")
 	}
 }
