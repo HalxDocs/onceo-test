@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        go: ['1.24']
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: onceo-test
+
+      - uses: actions/checkout@v4
+        with:
+          repository: HalxDocs/onceo-core
+          path: onceo-core
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Update replace directive for CI
+        working-directory: onceo-test
+        run: |
+          go mod edit -replace github.com/HalxDocs/onceo-core=../onceo-core
+
+      - name: Tidy
+        working-directory: onceo-test
+        run: go mod tidy
+
+      - name: Vet
+        working-directory: onceo-test
+        run: go vet ./...
+
+      - name: Test
+        working-directory: onceo-test
+        run: go test -v -race -count=1 -timeout 120s ./...
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: onceo-test
+
+      - uses: actions/checkout@v4
+        with:
+          repository: HalxDocs/onceo-core
+          path: onceo-core
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Update replace directive for CI
+        working-directory: onceo-test
+        run: |
+          go mod edit -replace github.com/HalxDocs/onceo-core=../onceo-core
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: onceo-test
+          version: latest
