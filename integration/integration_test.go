@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -355,20 +356,20 @@ func TestProcessBodyTooLarge(t *testing.T) {
 }
 
 func TestBodyBoundEnforcement(t *testing.T) {
-	providers := []struct {
+	tests := []struct {
 		name string
-		bind func() onceo.Provider[any]
+		bind func() bool
 		want bool
 	}{
-		{"paystack", func() onceo.Provider[any] { p, _ := paystack.New("sk"); return p }, true},
-		{"flutterwave", func() onceo.Provider[any] { p, _ := flutterwave.New("sk"); return p }, false},
-		{"opay", func() onceo.Provider[any] { p, _ := opay.New("sk"); return p }, true},
-		{"mpesa", func() onceo.Provider[any] { p, _ := mpesa.New("a1234567890123456789012345678901"); return p }, true},
+		{"paystack", func() bool { p, _ := paystack.New("sk"); return p.BodyBound() }, true},
+		{"flutterwave", func() bool { p, _ := flutterwave.New("sk"); return p.BodyBound() }, false},
+		{"opay", func() bool { p, _ := opay.New("sk"); return p.BodyBound() }, true},
+		{"mpesa", func() bool { p, _ := mpesa.New("a1234567890123456789012345678901"); return p.BodyBound() }, true},
 	}
 
-	for _, tc := range providers {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.bind().BodyBound()
+			got := tc.bind()
 			if got != tc.want {
 				t.Errorf("BodyBound() = %v, want %v", got, tc.want)
 			}

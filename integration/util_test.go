@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/hex"
-	"fmt"
 )
 
 func testSignHMACSHA512(secret, body []byte) string {
@@ -18,5 +17,3 @@ func testSHA256Hex(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
 }
-
-var _ = fmt.Sprintf // keep fmt import

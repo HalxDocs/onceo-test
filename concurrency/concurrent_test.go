@@ -2,6 +2,8 @@ package concurrency
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -71,7 +73,7 @@ func TestConcurrentProcess(t *testing.T) {
 			defer wg.Done()
 
 			secret := fmt.Sprintf("sk_test_%d", id)
-			body := []byte(fmt.Sprintf(`{"event":"charge.success","data":{"id":%d,"status":"success","reference":"ref_%d","amount":50000,"currency":"NGN"}}`, id, id))
+			body := []byte(fmt.Sprintf(`{"event":"charge.success","data":{"id":%d,"status":"success","reference":"ref_%d","amount":50000,"currency":"NGN"}}`, id+1, id))
 			headers := testSignedHeaders(secret, body)
 
 			provider, err := paystack.New(secret)
